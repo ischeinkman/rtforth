@@ -10,7 +10,7 @@ repository = "https://github.com/chengchangwu/rtforth.git"
 autoexamples = false
 
 [workspace]
-members = ["rtf"]
+members = ["rtf", "webrtf"]
 
 [lib]
 name = "rtforth"
