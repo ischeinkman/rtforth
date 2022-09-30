@@ -1,10 +1,13 @@
 extern crate crossterm;
+extern crate dioxus;
+extern crate dioxus_tui;
 extern crate directories;
 extern crate getopts;
 extern crate rtforth;
 extern crate unicode_width;
 
 mod term;
+mod ui;
 
 use getopts::Options;
 use rtforth::core::{Control, Core, ForwardReferences, Stack, State, Wordlist};
@@ -130,6 +133,7 @@ impl VM {
         vm.add_file_access();
         vm.add_loader();
         vm.add_primitive("receive", receive);
+        vm.add_primitive("ui", launch_ui);
 
         vm.load_core_fth();
 
@@ -352,6 +356,10 @@ fn receive(vm: &mut VM) {
             None => {}
         },
     }
+}
+
+fn launch_ui(vm: &mut VM) {
+    ui::launch_ui();
 }
 
 #[inline(never)]
