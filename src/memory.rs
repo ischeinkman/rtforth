@@ -306,7 +306,7 @@ fn pull_slice<T: Copy, const N: usize>(slice: &[T]) -> [T; N] {
 }
 
 fn push_slice<T: Copy, const N: usize>(slice: &mut [T], bytes: [T; N]) {
-    (&mut slice[..N]).copy_from_slice(&bytes);
+    slice[..N].copy_from_slice(&bytes);
 }
 
 #[cfg(test)]
@@ -326,7 +326,7 @@ mod tests {
 
     #[test]
     fn test_systemvariable_locations() {
-        let mut ds = DataSpace::new(32);
+        let ds = DataSpace::new(32);
         assert_eq!(ds.system_variables().base, 10);
         let baddr = ds.system_variables().base_addr();
         let bval = ds.get_isize(baddr);

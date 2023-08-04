@@ -434,7 +434,9 @@ impl State {
 }
 
 #[derive(Clone, Copy, PartialEq)]
+#[derive(Default)]
 pub enum Control {
+    #[default]
     Default,
     Canary,
     If(usize),
@@ -447,11 +449,7 @@ pub enum Control {
     Endof(usize),
 }
 
-impl Default for Control {
-    fn default() -> Self {
-        Control::Default
-    }
-}
+
 
 impl Display for Control {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -829,7 +827,7 @@ pub trait Core: Sized {
     }
 
     fn compile_word(&mut self, word_index: usize) {
-        self.data_space().compile_usize(word_index as usize);
+        self.data_space().compile_usize(word_index);
     }
 
     fn compile_nest(&mut self, word_index: usize) {
@@ -1067,14 +1065,13 @@ pub trait Core: Sized {
 
     fn compile_leave(&mut self, word_idx: usize) {
         match self.leave_part() {
-            Some(leave_part) => {
+            Some(_leave_part) => {
                 self.compile_word(word_idx);
             }
             _ => {
                 self.abort_with(CONTROL_STRUCTURE_MISMATCH);
-                return;
             }
-        };
+        }
     }
 
     fn p_j(&mut self) {
@@ -1579,7 +1576,7 @@ pub trait Core: Sized {
             self.data_space().compile_isize(do_part as isize);
             let here = self.data_space().here();
             self.data_space()
-                .put_isize(here as isize, (do_part - mem::size_of::<isize>()));
+                .put_isize(here as isize, do_part - mem::size_of::<isize>());
         }
     }
 
@@ -1760,7 +1757,7 @@ pub trait Core: Sized {
             let mut char_indices = source.char_indices();
             loop {
                 match char_indices.next() {
-                    Some((idx, ch)) => {
+                    Some((_idx, ch)) => {
                         if ch as isize == v {
                             match char_indices.next() {
                                 Some((idx, _)) => {
@@ -1796,7 +1793,7 @@ pub trait Core: Sized {
             let mut char_indices = source.char_indices();
             loop {
                 match char_indices.next() {
-                    Some((idx, ch)) => {
+                    Some((_idx, ch)) => {
                         if ch as isize == v {
                             cnt += 1;
                         } else {
@@ -2247,7 +2244,7 @@ pub trait Core: Sized {
         self.parse_word();
         let mut last_token = self.last_token().take().expect("last token");
         last_token.make_ascii_lowercase();
-        if let Some(_) = self.find(&last_token) {
+        if self.find(&last_token).is_some() {
             match self.output_buffer().as_mut() {
                 Some(buf) => {
                     write!(buf, "Redefining {}", last_token).expect("write");
@@ -3220,7 +3217,7 @@ mod tests {
         INVALID_MEMORY_ADDRESS, RETURN_STACK_UNDERFLOW, STACK_UNDERFLOW, UNDEFINED_WORD,
         UNEXPECTED_END_OF_FILE, UNSUPPORTED_OPERATION,
     };
-    use loader::HasLoader;
+    
     use mock_vm::VM;
     use std::mem;
 
@@ -4612,19 +4609,19 @@ mod tests {
         vm.clear_error();
         vm.set_source(": test6   [ 0 ] goto ;");
         vm.evaluate_input();
-        assert!(vm.last_error() != None);
+        assert!(vm.last_error().is_some());
         // 0 label
         vm.clear_stacks();
         vm.clear_error();
         vm.set_source(": test7   [ 0 ] label ;");
         vm.evaluate_input();
-        assert!(vm.last_error() != None);
+        assert!(vm.last_error().is_some());
         // 0 call
         vm.clear_stacks();
         vm.clear_error();
         vm.set_source(": test8   [ 0 ] call ;");
         vm.evaluate_input();
-        assert!(vm.last_error() != None);
+        assert!(vm.last_error().is_some());
     }
 
     #[test]
@@ -4794,7 +4791,7 @@ mod tests {
         let (n, t) = vm.s_stack().pop2();
         assert!(!vm.s_stack().underflow());
         assert_eq!(t - n, 4 * mem::size_of::<usize>() as isize);
-        assert_eq!(vm.data_space().get_isize(here + 0), 1);
+        assert_eq!(vm.data_space().get_isize(here), 1);
         assert_eq!(vm.data_space().get_isize(here + mem::size_of::<isize>()), 2);
         assert_eq!(
             vm.data_space()

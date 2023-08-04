@@ -123,7 +123,7 @@ pub trait Output: Core {
         self.parse();
         let last_token = self.last_token().take().unwrap();
         if let Some(ref mut buffer) = *self.output_buffer() {
-            buffer.extend(last_token.chars());
+            buffer.push_str(&last_token);
         }
         self.set_last_token(last_token);
     }
@@ -210,7 +210,7 @@ pub trait Output: Core {
     fn flush_output(&mut self) {
         match self.output_buffer().as_mut() {
             Some(buf) => {
-                if buf.len() > 0 {
+                if !buf.is_empty() {
                     println!("{}", buf);
                     buf.clear();
                 }

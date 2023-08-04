@@ -52,7 +52,7 @@ pub trait HasLoader: Core + Output {
                         }
                         None => {
                             let sid = self.sources().len() as isize;
-                            self.s_stack().push(sid as isize + 1);
+                            self.s_stack().push(sid + 1);
                             self.sources_mut().push(Some(Source { reader, path }));
                             self.lines_mut().push(Some(String::with_capacity(128)));
                         }
@@ -78,15 +78,13 @@ pub trait HasLoader: Core + Output {
         let id = self.s_stack().pop();
         if self.source_id() == id {
             self.abort_with(INVALID_NUMERIC_ARGUMENT);
+        } else if id > 0
+            && id - 1 < self.sources().len() as isize
+            && self.sources()[id as usize - 1].is_some()
+        {
+            let _ = self.sources_mut()[id as usize - 1].take();
         } else {
-            if id > 0
-                && id - 1 < self.sources().len() as isize
-                && self.sources()[id as usize - 1].is_some()
-            {
-                let _ = self.sources_mut()[id as usize - 1].take();
-            } else {
-                self.abort_with(INVALID_NUMERIC_ARGUMENT);
-            }
+            self.abort_with(INVALID_NUMERIC_ARGUMENT);
         }
     }
 
@@ -162,7 +160,7 @@ pub trait HasLoader: Core + Output {
         line.clear();
         let result = match source.reader.read_line(&mut line) {
             Ok(len) => {
-                let not_eof = !(len == 0);
+                let not_eof = len != 0;
                 if line.ends_with('\n') {
                     line.truncate(len - 1);
                     if line.ends_with('\r') {

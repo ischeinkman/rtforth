@@ -46,7 +46,7 @@ pub trait FileAccess: Core {
         let fileid = fileid as usize - 1;
         if fileid < self.files().len() {
             let ud = match &self.files()[fileid] {
-                &Some(ref f) => match f.metadata() {
+                Some(f) => match f.metadata() {
                     Ok(m) => {
                         let ud = m.len();
                         if ud <= isize::max_value() as u64 {
@@ -94,7 +94,7 @@ pub trait FileAccess: Core {
         let fileid = fileid as usize - 1;
         if fileid < self.files().len() {
             let ud = match &mut self.files_mut()[fileid] {
-                &mut Some(ref mut f) => match f.seek(SeekFrom::Current(0)) {
+                &mut Some(ref mut f) => match f.stream_position() {
                     Ok(ud) => {
                         if ud <= isize::max_value() as u64 {
                             Ok(ud)

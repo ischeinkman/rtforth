@@ -11,7 +11,7 @@ pub enum IResult<'l, T> {
 pub fn sign(input: &[u8]) -> IResult<isize> {
     let mut sign = 1;
     let mut bytes = input;
-    if bytes.len() >= 1 {
+    if !bytes.is_empty() {
         match bytes[0] {
             b'+' => {
                 bytes = &bytes[1..];
@@ -25,13 +25,13 @@ pub fn sign(input: &[u8]) -> IResult<isize> {
             }
         }
     }
-    IResult::Done(&bytes, sign)
+    IResult::Done(bytes, sign)
 }
 
 pub fn base(input: &[u8], default_base: isize) -> IResult<isize> {
     let mut base = default_base;
     let mut bytes = input;
-    if bytes.len() >= 1 {
+    if !bytes.is_empty() {
         match bytes[0] {
             b'%' => {
                 base = 2;
@@ -50,7 +50,7 @@ pub fn base(input: &[u8], default_base: isize) -> IResult<isize> {
             }
         }
     }
-    IResult::Done(&bytes, base)
+    IResult::Done(bytes, base)
 }
 
 pub fn uint_in_base(input: &[u8], base: isize) -> IResult<isize> {
@@ -73,7 +73,7 @@ pub fn uint_in_base(input: &[u8], base: isize) -> IResult<isize> {
         }
         // Allow wrapping for integer.
         value = value.wrapping_mul(base).wrapping_add(d);
-        len = len + 1;
+        len += 1;
     }
     bytes = &bytes[len..];
     IResult::Done(bytes, value)
@@ -95,7 +95,7 @@ pub fn uint(input: &[u8]) -> IResult<isize> {
                 }
                 None => return IResult::Err(RESULT_OUT_OF_RANGE),
             }
-            len = len + 1;
+            len += 1;
         } else {
             break;
         }
@@ -114,7 +114,7 @@ pub fn quoted_char(input: &[u8]) -> IResult<isize> {
 }
 
 pub fn ascii(input: &[u8], ascii: u8) -> IResult<bool> {
-    if input.len() >= 1 && input[0] == ascii {
+    if !input.is_empty() && input[0] == ascii {
         IResult::Done(&input[1..], true)
     } else {
         IResult::Done(input, false)
@@ -125,7 +125,7 @@ pub fn fraction(input: &[u8]) -> IResult<f64> {
     let mut len = 0i32;
     let mut bytes = input;
     let mut value = 0isize;
-    if bytes.len() >= 1 && bytes[0] == b'.' {
+    if !bytes.is_empty() && bytes[0] == b'.' {
         bytes = &bytes[1..];
         for c in bytes.iter() {
             if b'0' <= *c && *c <= b'9' {
@@ -137,7 +137,7 @@ pub fn fraction(input: &[u8]) -> IResult<f64> {
                     Some(v) => value = v,
                     None => return IResult::Err(RESULT_OUT_OF_RANGE),
                 }
-                len = len + 1;
+                len += 1;
             } else {
                 break;
             }

@@ -25,11 +25,11 @@ pub trait Tools: Output {
     fn dot_s(&mut self) {
         match self.output_buffer().take() {
             Some(mut buf) => {
-                if self.s_stack().len() > 0 {
+                if !self.s_stack().is_empty() {
                     write!(buf, "{:?}", self.s_stack()).expect("write data stack");
                 }
-                if self.f_stack().len() > 0 {
-                    if self.s_stack().len() > 0 {
+                if !self.f_stack().is_empty() {
+                    if !self.s_stack().is_empty() {
                         write!(buf, " ").unwrap();
                     }
                     write!(buf, "F: {:?}", self.f_stack()).expect("write floating stack");
