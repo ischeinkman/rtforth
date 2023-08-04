@@ -198,7 +198,7 @@ impl<T: Default + Copy + PartialEq + Display> Stack<T> {
         let mut result = Stack {
             inner: [T::default(); 256],
             len: 0,
-            canary: canary,
+            canary,
         };
         result.reset();
         result
@@ -894,12 +894,12 @@ pub trait Core: Sized {
         let ip = self.state().instruction_pointer;
         let (addr, cnt) = {
             let s = self.data_space().get_str(ip);
-            (s.as_ptr() as isize, s.len() as isize)
+            (ip + std::mem::size_of::<isize>(), s.len() as isize)
         };
         let slen = self.s_stack().len.wrapping_add(2);
         self.s_stack().len = slen;
         self.s_stack()[slen.wrapping_sub(1)] = cnt;
-        self.s_stack()[slen.wrapping_sub(2)] = addr;
+        self.s_stack()[slen.wrapping_sub(2)] = addr as isize;
         self.state().instruction_pointer = DataSpace::aligned(
             self.state().instruction_pointer + mem::size_of::<isize>() + cnt as usize,
         );
@@ -2017,13 +2017,8 @@ pub trait Core: Sized {
     fn evaluate_input(&mut self) {
         loop {
             self.parse_word();
-            match self.last_token().as_ref() {
-                Some(t) => {
-                    if t.is_empty() {
-                        return;
-                    }
-                }
-                None => {}
+            if self.last_token().as_ref().is_some_and(|t| t.is_empty()) {
+                return;
             }
             if self.state().is_compiling {
                 self.compile_token();
