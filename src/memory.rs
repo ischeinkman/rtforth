@@ -16,10 +16,7 @@ pub struct SystemVariables {
 
 impl SystemVariables {
     pub fn base_addr(&self) -> usize {
-        let base_addr = &self.base as *const _ as usize;
-        let root_addr = &self as *const _ as usize;
-        let offset = base_addr - root_addr;
-        BASE_ADDR + offset
+        BASE_ADDR + std::mem::size_of::<isize>()
     }
 
     fn read(buffer: &[u8]) -> Self {
@@ -327,6 +324,14 @@ mod tests {
         expected.write(&mut buffer);
         let actual = SystemVariables::read(&buffer);
         assert_eq!(expected, actual);
+    }
 
+    #[test]
+    fn test_systemvariable_locations() {
+        let mut ds = DataSpace::new(32);
+        assert_eq!(ds.system_variables().base, 10);
+        let baddr = ds.system_variables().base_addr();
+        let bval = ds.get_isize(baddr);
+        assert_eq!(bval, 10, "Location was {:?} ({:?})", baddr, baddr - BASE_ADDR);
     }
 }
