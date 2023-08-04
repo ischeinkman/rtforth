@@ -178,8 +178,8 @@ pub trait FileAccess: Core {
         };
         let file = {
             if self.data_space().start() <= caddr && caddr + u <= self.data_space().limit() {
-                let path_name = unsafe { self.data_space().str_from_raw_parts(caddr, u) };
-                match options.open(&path_name) {
+                let path_name = self.data_space().str_from_raw_parts(caddr, u);
+                match options.open(path_name) {
                     Err(_) => Err(FILE_IO_EXCEPTION),
                     Ok(file) => Ok(file),
                 }
@@ -221,7 +221,7 @@ pub trait FileAccess: Core {
         } else {
             let result = {
                 if self.data_space().start() <= caddr && caddr + u <= self.data_space().limit() {
-                    let path_name = unsafe { self.data_space().str_from_raw_parts(caddr, u) };
+                    let path_name = self.data_space().str_from_raw_parts(caddr, u);
                     match fs::remove_file(path_name) {
                         Err(_) => FILE_IO_EXCEPTION.into(),
                         Ok(_) => 0,
@@ -270,8 +270,8 @@ pub trait FileAccess: Core {
         };
         let file = {
             if self.data_space().start() <= caddr && caddr + u <= self.data_space().limit() {
-                let path_name = unsafe { self.data_space().str_from_raw_parts(caddr, u) };
-                match options.open(&path_name) {
+                let path_name = self.data_space().str_from_raw_parts(caddr, u);
+                match options.open(path_name) {
                     Err(_) => Err(FILE_IO_EXCEPTION),
                     Ok(file) => Ok(file),
                 }
@@ -342,8 +342,8 @@ pub trait FileAccess: Core {
             let mut file = self.files_mut()[fileid].take().unwrap();
             let result = {
                 if self.data_space().start() <= caddr && caddr + u1 <= self.data_space().limit() {
-                    let mut buf = unsafe { self.data_space().buffer_from_raw_parts_mut(caddr, u1) };
-                    file.read(&mut buf).or(Err(FILE_IO_EXCEPTION.into()))
+                    let buf = self.data_space().buffer_from_raw_parts_mut(caddr, u1);
+                    file.read(buf).or(Err(FILE_IO_EXCEPTION.into()))
                 } else {
                     Err(INVALID_MEMORY_ADDRESS.into())
                 }
@@ -386,9 +386,7 @@ pub trait FileAccess: Core {
                         if self.data_space().start() <= caddr
                             && caddr + u <= self.data_space().limit()
                         {
-                            let buf = unsafe {
-                                self.data_space().buffer_from_raw_parts(caddr as _, u as _)
-                            };
+                            let buf = self.data_space().buffer_from_raw_parts(caddr as _, u as _);
                             f.write_all(buf).or(Err(FILE_IO_EXCEPTION))
                         } else {
                             Err(INVALID_MEMORY_ADDRESS)

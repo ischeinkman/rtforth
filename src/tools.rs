@@ -48,7 +48,7 @@ pub trait Tools: Output {
             for w in (1..self.wordlist().len()).rev() {
                 if !self.wordlist()[w].is_hidden() {
                     let nfa = self.wordlist()[w].nfa();
-                    let name = unsafe { self.data_space().get_str(nfa) };
+                    let name = self.data_space().get_str(nfa);
                     write!(buf, "{} ", name).unwrap();
                 }
             }
@@ -64,7 +64,7 @@ pub trait Tools: Output {
             let xt = self.s_stack().pop() as usize;
             if xt < self.wordlist().len() {
                 let nfa = self.wordlist()[xt].nfa();
-                let name = unsafe { self.data_space().get_str(nfa) };
+                let name = self.data_space().get_str(nfa);
                 write!(buf, "{} ", name).unwrap();
             } else {
                 write!(buf, "unknown ").unwrap();
@@ -84,7 +84,7 @@ pub trait Tools: Output {
                 match self.wordlist().find_xt(ip) {
                     Some(xt) => {
                         let nfa = self.wordlist()[xt].nfa();
-                        let name = unsafe { self.data_space().get_str(nfa) };
+                        let name = self.data_space().get_str(nfa);
                         write!(buf, "{} ", name).unwrap();
                     }
                     None => {
@@ -96,7 +96,7 @@ pub trait Tools: Output {
             let xt = self.state().aborted_word_pointer;
             if xt != 0 {
                 let nfa = self.wordlist()[xt].nfa();
-                let name = unsafe { self.data_space().get_str(nfa) };
+                let name = self.data_space().get_str(nfa);
                 write!(buf, "{} ", name).unwrap();
             }
 
@@ -104,7 +104,7 @@ pub trait Tools: Output {
             match self.wordlist().find_xt(ip) {
                 Some(xt) => {
                     let nfa = self.wordlist()[xt].nfa();
-                    let name = unsafe { self.data_space().get_str(nfa) };
+                    let name = self.data_space().get_str(nfa);
                     write!(buf, "{} ", name).unwrap();
                 }
                 None => {
@@ -174,7 +174,7 @@ pub trait Tools: Output {
                     let min_t = self.wordlist()[w].min_execution_time;
                     let max_t = self.wordlist()[w].max_execution_time;
                     let nfa = self.wordlist()[w].nfa();
-                    let name = unsafe { self.data_space().get_str(nfa) };
+                    let name = self.data_space().get_str(nfa);
                     write!(buf, "{}|{},{}", name, min_t, max_t).unwrap();
                 }
             }

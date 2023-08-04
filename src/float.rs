@@ -58,7 +58,7 @@ pub trait Float: Core {
     fn p_fconst(&mut self) {
         let wp = self.state().word_pointer();
         let pos = DataSpace::aligned_f64(self.wordlist()[wp].dfa());
-        let v = unsafe { self.data_space().get_f64(pos) };
+        let v = self.data_space().get_f64(pos);
         self.f_stack().push(v);
     }
 
@@ -112,7 +112,7 @@ pub trait Float: Core {
         // Because t is aligned to f64 boundary, and memory is 4K-page aligned,
         // checking start() <= t < limit() is enough.
         if self.data_space().start() <= t && t < self.data_space().limit() {
-            let value = unsafe { self.data_space().get_f64(t) };
+            let value = self.data_space().get_f64(t);
             self.f_stack().push(value);
         } else {
             self.abort_with(INVALID_MEMORY_ADDRESS);
@@ -125,7 +125,7 @@ pub trait Float: Core {
         // Because t is aligned to f64 boundary, and memory is 4K-page aligned,
         // checking start() <= t < limit() is enough.
         if self.data_space().start() <= t && t < self.data_space().limit() {
-            unsafe { self.data_space().put_f64(n, t) };
+            self.data_space().put_f64(n, t);
         } else {
             self.abort_with(INVALID_MEMORY_ADDRESS);
         }
@@ -334,10 +334,10 @@ pub trait Float: Core {
 #[cfg(test)]
 mod tests {
     use super::Float;
-    use core::Core;
     use crate::exception::UNDEFINED_WORD;
-    use mock_vm::VM;
     use approx::assert_ulps_eq;
+    use core::Core;
+    use mock_vm::VM;
 
     #[test]
     fn test_ans_forth_float() {

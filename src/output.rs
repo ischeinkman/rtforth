@@ -57,7 +57,7 @@ pub trait Output: Core {
         match self.output_buffer().take() {
             Some(mut buffer) => {
                 {
-                    let s = unsafe {
+                    let s = {
                         &self
                             .data_space()
                             .str_from_raw_parts(addr as usize, len as usize)
@@ -133,7 +133,7 @@ pub trait Output: Core {
     /// Display `n1` right aligned in a field `n2` characters wide.
     fn dot_r(&mut self) {
         let base_addr = self.data_space().system_variables().base_addr();
-        let base = unsafe { self.data_space().get_isize(base_addr) };
+        let base = self.data_space().get_isize(base_addr);
         let mut valid_base = true;
         let (n1, n2) = self.s_stack().pop2();
         if let Some(mut buf) = self.output_buffer().take() {

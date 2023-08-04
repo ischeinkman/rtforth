@@ -43,9 +43,8 @@ pub trait HasLoader: Core + Output {
                 Some(file) => {
                     let position = self.sources().iter().position(|x| x.is_none());
                     let reader = BufReader::new(file);
-                    let path = String::from(unsafe {
-                        self.data_space().str_from_raw_parts(caddr as _, u as _)
-                    });
+                    let path =
+                        String::from(self.data_space().str_from_raw_parts(caddr as _, u as _));
                     match position {
                         Some(sid) => {
                             self.sources_mut()[sid] = Some(Source { reader, path });
