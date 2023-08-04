@@ -96,7 +96,7 @@ pub trait Output: Core {
             self.data_space().compile_str(s);
             self.data_space().align();
             // ignore the space following S"
-            self.state().source_index = self.state().source_index + 1 + cnt as usize + 1;
+            self.state().source_index = self.state().source_index + 1 + cnt + 1;
         }
         self.set_input_buffer(input_buffer);
     }

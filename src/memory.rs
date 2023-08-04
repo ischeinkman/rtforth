@@ -1,10 +1,8 @@
 //! Memory access
 
 use exception::{Exception, INVALID_MEMORY_ADDRESS};
-use std::alloc::{alloc_zeroed, dealloc, Layout};
 use std::marker;
 use std::mem;
-use std::slice;
 
 const BASE_ADDR: usize = 0x4000_0000;
 
@@ -199,7 +197,7 @@ pub(crate) trait Memory {
 
     fn compile_relative(&mut self, f: usize) {
         let there = self.here() + mem::size_of::<usize>();
-        let diff = f.wrapping_sub(there) as usize;
+        let diff = f.wrapping_sub(there);
         self.compile_usize(diff);
     }
 
