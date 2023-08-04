@@ -53,11 +53,11 @@ impl<Target> Word<Target> {
             hidden: false,
             link: 0,
             hash: 0,
-            nfa: nfa,
-            dfa: dfa,
+            nfa,
+            dfa,
             doer: 0,
-            action: action,
-            compilation_semantics: compilation_semantics,
+            action,
+            compilation_semantics,
             min_execution_time: 0,
             max_execution_time: 0,
         }
@@ -779,7 +779,7 @@ pub trait Core: Sized {
                 {
                     if self.wordlist()[w].hash == hash {
                         let nfa = self.wordlist()[w].nfa();
-                        let w_name = unsafe { self.data_space().get_str(nfa) };
+                        let w_name = self.data_space().get_str(nfa);
                         if w_name.eq_ignore_ascii_case(name) {
                             return Some(w);
                         }
@@ -803,7 +803,7 @@ pub trait Core: Sized {
         while self.data_space().start() <= ip
             && ip + mem::size_of::<isize>() <= self.data_space().limit()
         {
-            let w = unsafe { self.data_space().get_isize(ip) as usize };
+            let w = self.data_space().get_isize(ip) as usize;
             self.state().instruction_pointer += mem::size_of::<isize>();
             self.execute_word(w);
             ip = self.state().instruction_pointer;
@@ -818,7 +818,7 @@ pub trait Core: Sized {
         if self.data_space().start() <= ip
             && ip + mem::size_of::<isize>() <= self.data_space().limit()
         {
-            let w = unsafe { self.data_space().get_isize(ip) as usize };
+            let w = self.data_space().get_isize(ip) as usize;
             self.state().instruction_pointer += mem::size_of::<isize>();
             self.execute_word(w);
             ip = self.state().instruction_pointer;
@@ -858,7 +858,7 @@ pub trait Core: Sized {
 
     fn lit(&mut self) {
         let ip = self.state().instruction_pointer;
-        let v = unsafe { self.data_space().get_isize(ip) as isize };
+        let v = self.data_space().get_isize(ip);
         let slen = self.s_stack().len.wrapping_add(1);
         self.s_stack().len = slen;
         self.s_stack()[slen.wrapping_sub(1)] = v;
@@ -869,12 +869,12 @@ pub trait Core: Sized {
     fn compile_integer(&mut self, i: isize) {
         let idx = self.references().idx_lit;
         self.compile_word(idx);
-        self.data_space().compile_isize(i as isize);
+        self.data_space().compile_isize(i);
     }
 
     fn flit(&mut self) {
-        let ip = DataSpace::aligned_f64(self.state().instruction_pointer as usize);
-        let v = unsafe { self.data_space().get_f64(ip) };
+        let ip = DataSpace::aligned_f64(self.state().instruction_pointer);
+        let v = self.data_space().get_f64(ip);
         let flen = self.f_stack().len.wrapping_add(1);
         self.f_stack().len = flen;
         self.f_stack()[flen.wrapping_sub(1)] = v;
@@ -893,7 +893,7 @@ pub trait Core: Sized {
     fn p_s_quote(&mut self) {
         let ip = self.state().instruction_pointer;
         let (addr, cnt) = {
-            let s = unsafe { self.data_space().get_str(ip) };
+            let s = self.data_space().get_str(ip);
             (s.as_ptr() as isize, s.len() as isize)
         };
         let slen = self.s_stack().len.wrapping_add(2);
@@ -912,7 +912,7 @@ pub trait Core: Sized {
 
     fn branch(&mut self) {
         let ip = self.state().instruction_pointer;
-        self.state().instruction_pointer = unsafe { self.data_space().get_isize(ip) as usize };
+        self.state().instruction_pointer = self.data_space().get_isize(ip) as usize;
     }
 
     fn compile_branch(&mut self, destination: usize) -> usize {
@@ -1062,8 +1062,7 @@ pub trait Core: Sized {
             self.abort_with(RETURN_STACK_UNDERFLOW);
             return;
         }
-        self.state().instruction_pointer =
-            unsafe { self.data_space().get_isize(third as usize) as usize };
+        self.state().instruction_pointer = self.data_space().get_isize(third as usize) as usize;
     }
 
     fn compile_leave(&mut self, word_idx: usize) {
@@ -1150,10 +1149,8 @@ pub trait Core: Sized {
         } else {
             let here = self.compile_branch(0);
             self.c_stack().push(Control::Else(here));
-            unsafe {
-                self.data_space()
-                    .put_isize(here as isize, if_part - mem::size_of::<isize>());
-            }
+            self.data_space()
+                .put_isize(here as isize, if_part - mem::size_of::<isize>());
         }
     }
 
@@ -1170,10 +1167,8 @@ pub trait Core: Sized {
             self.abort_with(CONTROL_STRUCTURE_MISMATCH);
         } else {
             let here = self.data_space().here();
-            unsafe {
-                self.data_space()
-                    .put_isize(here as isize, branch_part - mem::size_of::<isize>());
-            }
+            self.data_space()
+                .put_isize(here as isize, branch_part - mem::size_of::<isize>());
         }
     }
 
@@ -1244,10 +1239,8 @@ pub trait Core: Sized {
         } else {
             let here = self.compile_branch(0);
             self.c_stack().push(Control::Endof(here));
-            unsafe {
-                self.data_space()
-                    .put_isize(here as isize, of_part - mem::size_of::<isize>());
-            }
+            self.data_space()
+                .put_isize(here as isize, of_part - mem::size_of::<isize>());
         }
     }
 
@@ -1269,10 +1262,8 @@ pub trait Core: Sized {
                 self.abort_with(CONTROL_STRUCTURE_MISMATCH);
             } else {
                 let here = self.data_space().here();
-                unsafe {
-                    self.data_space()
-                        .put_isize(here as isize, endof_part - mem::size_of::<isize>());
-                }
+                self.data_space()
+                    .put_isize(here as isize, endof_part - mem::size_of::<isize>());
             }
         }
         if self.c_stack().underflow() {
@@ -1324,10 +1315,8 @@ pub trait Core: Sized {
             self.abort_with(CONTROL_STRUCTURE_MISMATCH);
         } else {
             let here = self.compile_branch(begin_part);
-            unsafe {
-                self.data_space()
-                    .put_isize(here as isize, while_part - mem::size_of::<isize>());
-            }
+            self.data_space()
+                .put_isize(here as isize, while_part - mem::size_of::<isize>());
         }
     }
 
@@ -1408,10 +1397,8 @@ pub trait Core: Sized {
                 // Resolve forward references.
                 let mut p = self.labels()[n];
                 loop {
-                    let last = unsafe { self.data_space().get_usize(p) };
-                    unsafe {
-                        self.data_space().put_isize(here as isize, p as usize);
-                    }
+                    let last = self.data_space().get_usize(p);
+                    self.data_space().put_isize(here as isize, p);
                     if last == 0 {
                         break;
                     }
@@ -1591,10 +1578,8 @@ pub trait Core: Sized {
             self.compile_word(idx);
             self.data_space().compile_isize(do_part as isize);
             let here = self.data_space().here();
-            unsafe {
-                self.data_space()
-                    .put_isize(here as isize, (do_part - mem::size_of::<isize>()) as usize);
-            }
+            self.data_space()
+                .put_isize(here as isize, (do_part - mem::size_of::<isize>()));
         }
     }
 
@@ -1619,10 +1604,8 @@ pub trait Core: Sized {
             self.compile_word(idx);
             self.data_space().compile_isize(do_part as isize);
             let here = self.data_space().here();
-            unsafe {
-                self.data_space()
-                    .put_isize(here as isize, (do_part - mem::size_of::<isize>()) as usize);
-            }
+            self.data_space()
+                .put_isize(here as isize, do_part - mem::size_of::<isize>());
         }
     }
 
@@ -1734,7 +1717,7 @@ pub trait Core: Sized {
     fn char(&mut self) {
         self.parse_word();
         let last_token = self.last_token().take().expect("token");
-        match last_token.chars().nth(0) {
+        match last_token.chars().next() {
             Some(c) => {
                 self.set_last_token(last_token);
                 self.s_stack().push(c as isize);
@@ -1978,7 +1961,7 @@ pub trait Core: Sized {
     /// Is token empty? `token-empty? ( -- f )
     fn token_empty(&mut self) {
         let value = match self.last_token().as_ref() {
-            Some(ref t) => {
+            Some( t) => {
                 if t.is_empty() {
                     TRUE
                 } else {
@@ -2018,13 +2001,13 @@ pub trait Core: Sized {
                     t.clear();
                     self.set_last_token(t);
                 }
-                None => unsafe {
+                None => {
                     if c_addr < self.data_space().limit() {
                         self.data_space().put_u8(0, c_addr);
                     } else {
                         panic!("Error: store_token while space is full.");
                     }
-                },
+                }
             }
         } else {
             self.abort_with(INVALID_MEMORY_ADDRESS);
@@ -2068,8 +2051,8 @@ pub trait Core: Sized {
 
     fn evaluate_integer(&mut self, token: &str) {
         let base_addr = self.data_space().system_variables().base_addr();
-        let default_base = unsafe { self.data_space().get_isize(base_addr) };
-        match parser::quoted_char(&token.as_bytes()) {
+        let default_base = self.data_space().get_isize(base_addr);
+        match parser::quoted_char(token.as_bytes()) {
             parser::IResult::Done(_bytes, c) => {
                 if self.state().is_compiling {
                     self.compile_integer(c);
@@ -2082,18 +2065,16 @@ pub trait Core: Sized {
                 // Do nothing.
             }
         }
-        match parser::base(&token.as_bytes(), default_base) {
-            parser::IResult::Done(bytes, base) => match parser::sign(&bytes) {
-                parser::IResult::Done(bytes, sign) => match parser::uint_in_base(&bytes, base) {
+        match parser::base(token.as_bytes(), default_base) {
+            parser::IResult::Done(bytes, base) => match parser::sign(bytes) {
+                parser::IResult::Done(bytes, sign) => match parser::uint_in_base(bytes, base) {
                     parser::IResult::Done(bytes, value) => {
-                        if bytes.len() != 0 {
+                        if !bytes.is_empty() {
                             self.set_error(Some(UNSUPPORTED_OPERATION));
+                        } else if self.state().is_compiling {
+                            self.compile_integer(sign.wrapping_mul(value));
                         } else {
-                            if self.state().is_compiling {
-                                self.compile_integer(sign.wrapping_mul(value));
-                            } else {
-                                self.s_stack().push(sign.wrapping_mul(value));
-                            }
+                            self.s_stack().push(sign.wrapping_mul(value));
                         }
                     }
                     parser::IResult::Err(e) => self.set_error(Some(e)),
@@ -2222,24 +2203,22 @@ pub trait Core: Sized {
             failed = true;
         }
 
-        if bytes.len() != 0 {
+        if !bytes.is_empty() {
             failed = true;
         }
 
         if failed {
             self.set_error(Some(UNSUPPORTED_OPERATION))
+        } else if self.references().idx_flit == 0 {
+            self.set_error(Some(UNSUPPORTED_OPERATION));
         } else {
-            if self.references().idx_flit == 0 {
-                self.set_error(Some(UNSUPPORTED_OPERATION));
+            let value = (significand_sign as f64)
+                * (integer_part as f64 + fraction_part)
+                * ((10.0f64).powi((exponent_sign.wrapping_mul(exponent_part)) as i32));
+            if self.state().is_compiling {
+                self.compile_float(value);
             } else {
-                let value = (significand_sign as f64)
-                    * (integer_part as f64 + fraction_part)
-                    * ((10.0f64).powi((exponent_sign.wrapping_mul(exponent_part)) as i32) as f64);
-                if self.state().is_compiling {
-                    self.compile_float(value);
-                } else {
-                    self.f_stack().push(value);
-                }
+                self.f_stack().push(value);
             }
         }
     }
@@ -2265,7 +2244,7 @@ pub trait Core: Sized {
     fn p_const(&mut self) {
         let wp = self.state().word_pointer;
         let dfa = self.wordlist()[wp].dfa();
-        let value = unsafe { self.data_space().get_isize(dfa) as isize };
+        let value = self.data_space().get_isize(dfa);
         self.s_stack().push(value);
     }
 
@@ -2326,7 +2305,7 @@ pub trait Core: Sized {
         let v = self.s_stack().pop();
         self.define(Core::p_const, Core::compile_const);
         if self.last_error().is_none() {
-            self.data_space().compile_isize(v as isize);
+            self.data_space().compile_isize(v);
         }
     }
 
@@ -2336,11 +2315,11 @@ pub trait Core: Sized {
             let w = &self.wordlist()[wp];
             (w.nfa(), w.dfa())
         };
-        let x = unsafe { self.data_space().get_usize(dfa) };
+        let x = self.data_space().get_usize(dfa);
         self.wordlist_mut().last = x;
         for i in 0..BUCKET_SIZE {
             dfa += mem::size_of::<usize>();
-            let x = unsafe { self.data_space().get_usize(dfa) };
+            let x = self.data_space().get_usize(dfa);
             self.wordlist_mut().buckets[i] = x;
         }
         self.data_space().truncate(nfa);
@@ -2782,7 +2761,7 @@ pub trait Core: Sized {
         let t = self.s_stack().pop() as usize;
         if self.data_space().start() < t && t + mem::size_of::<isize>() <= self.data_space().limit()
         {
-            let value = unsafe { self.data_space().get_isize(t as usize) as isize };
+            let value = self.data_space().get_isize(t);
             self.s_stack().push(value);
         } else {
             self.abort_with(INVALID_MEMORY_ADDRESS);
@@ -2797,7 +2776,7 @@ pub trait Core: Sized {
         let t = t as usize;
         if self.data_space().start() < t && t + mem::size_of::<isize>() <= self.data_space().limit()
         {
-            unsafe { self.data_space().put_isize(n as isize, t as usize) };
+            self.data_space().put_isize(n, t);
         } else {
             self.abort_with(INVALID_MEMORY_ADDRESS);
         }
@@ -2810,7 +2789,7 @@ pub trait Core: Sized {
     fn c_fetch(&mut self) {
         let t = self.s_stack().pop() as usize;
         if self.data_space().start() <= t && t < self.data_space().limit() {
-            let value = unsafe { self.data_space().get_u8(t as usize) as isize };
+            let value = self.data_space().get_u8(t) as isize;
             self.s_stack().push(value);
         } else {
             self.abort_with(INVALID_MEMORY_ADDRESS);
@@ -2826,7 +2805,7 @@ pub trait Core: Sized {
         let (n, t) = self.s_stack().pop2();
         let t = t as usize;
         if self.data_space().start() < t && t < self.data_space().limit() {
-            unsafe { self.data_space().put_u8(n as u8, t as usize) };
+            self.data_space().put_u8(n as u8, t);
         } else {
             self.abort_with(INVALID_MEMORY_ADDRESS);
         }
@@ -2850,21 +2829,15 @@ pub trait Core: Sized {
                 && self.data_space().start() < addr2
                 && addr2 + u <= self.data_space().limit()
             {
-                unsafe {
-                    if addr1 < addr2 {
-                        for p in (addr1..(addr1 + u))
-                            .into_iter()
-                            .zip(addr2..(addr2 + u))
-                            .rev()
-                        {
-                            let value = self.data_space().get_u8(p.0);
-                            self.data_space().put_u8(value, p.1);
-                        }
-                    } else {
-                        for p in (addr1..(addr1 + u)).into_iter().zip(addr2..(addr2 + u)) {
-                            let value = self.data_space().get_u8(p.0);
-                            self.data_space().put_u8(value, p.1);
-                        }
+                if addr1 < addr2 {
+                    for p in (addr1..(addr1 + u)).zip(addr2..(addr2 + u)).rev() {
+                        let value = self.data_space().get_u8(p.0);
+                        self.data_space().put_u8(value, p.1);
+                    }
+                } else {
+                    for p in (addr1..(addr1 + u)).zip(addr2..(addr2 + u)) {
+                        let value = self.data_space().get_u8(p.0);
+                        self.data_space().put_u8(value, p.1);
                     }
                 }
             } else {
@@ -2962,7 +2935,7 @@ pub trait Core: Sized {
     /// Append the execution semantics of the definition represented by xt to the execution semantics of the current definition.
     fn compile_comma(&mut self) {
         let v = self.s_stack().pop();
-        self.data_space().compile_isize(v as isize);
+        self.data_space().compile_isize(v);
     }
 
     /// Run-time: ( -- addr )
@@ -3007,7 +2980,7 @@ pub trait Core: Sized {
     /// data-space pointer is not aligned prior to execution of `,`.
     fn comma(&mut self) {
         let v = self.s_stack().pop();
-        self.data_space().compile_isize(v as isize);
+        self.data_space().compile_isize(v);
     }
 
     fn p_to_r(&mut self) {
@@ -3227,7 +3200,7 @@ pub trait Core: Sized {
     fn suspend(&mut self) {
         let i = (self.s_stack().pop() - 1) as usize;
         if i < NUM_TASKS {
-            self.set_awake(i as usize, false);
+            self.set_awake(i, false);
         } else {
             self.abort_with(INVALID_NUMERIC_ARGUMENT);
         }
@@ -3237,7 +3210,7 @@ pub trait Core: Sized {
     fn resume(&mut self) {
         let i = (self.s_stack().pop() - 1) as usize;
         if i < NUM_TASKS {
-            self.set_awake(i as usize, true);
+            self.set_awake(i, true);
         } else {
             self.abort_with(INVALID_NUMERIC_ARGUMENT);
         }
@@ -3607,7 +3580,6 @@ mod tests {
         assert_eq!(vm.s_stack().pop(), 1);
     }
 
-
     #[test]
     fn test_minus() {
         let vm = &mut VM::new();
@@ -3630,7 +3602,6 @@ mod tests {
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), -2);
     }
-
 
     #[test]
     fn test_plus() {
@@ -3655,7 +3626,6 @@ mod tests {
         assert_eq!(vm.s_stack().pop(), 12);
     }
 
-
     #[test]
     fn test_star() {
         let vm = &mut VM::new();
@@ -3679,7 +3649,6 @@ mod tests {
         assert_eq!(vm.s_stack().pop(), 35);
     }
 
-
     #[test]
     fn test_slash() {
         let vm = &mut VM::new();
@@ -3702,7 +3671,6 @@ mod tests {
         assert_eq!(vm.s_stack().len(), 1);
         assert_eq!(vm.s_stack().pop(), 4);
     }
-
 
     #[test]
     fn test_mod() {
@@ -4831,19 +4799,17 @@ mod tests {
         let (n, t) = vm.s_stack().pop2();
         assert!(!vm.s_stack().underflow());
         assert_eq!(t - n, 4 * mem::size_of::<usize>() as isize);
-        unsafe {
-            assert_eq!(vm.data_space().get_isize(here + 0), 1);
-            assert_eq!(vm.data_space().get_isize(here + mem::size_of::<isize>()), 2);
-            assert_eq!(
-                vm.data_space()
-                    .get_isize(here + 2 * mem::size_of::<isize>()),
-                vm.references().idx_lit as isize
-            );
-            assert_eq!(
-                vm.data_space()
-                    .get_isize(here + 3 * mem::size_of::<isize>()),
-                vm.references().idx_exit as isize
-            );
-        }
+        assert_eq!(vm.data_space().get_isize(here + 0), 1);
+        assert_eq!(vm.data_space().get_isize(here + mem::size_of::<isize>()), 2);
+        assert_eq!(
+            vm.data_space()
+                .get_isize(here + 2 * mem::size_of::<isize>()),
+            vm.references().idx_lit as isize
+        );
+        assert_eq!(
+            vm.data_space()
+                .get_isize(here + 3 * mem::size_of::<isize>()),
+            vm.references().idx_exit as isize
+        );
     }
 }
