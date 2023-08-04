@@ -23,11 +23,13 @@ impl SystemVariables {
     }
 
     fn read(buffer: &[u8]) -> Self {
-        todo!()
+        let null = isize::from_ne_bytes(pull_slice(buffer));
+        let base = isize::from_ne_bytes(pull_slice(&buffer[8..]));
+        Self { null, base }
     }
     fn write(&self, buffer: &mut [u8]) {
-        (&mut buffer[..8]).copy_from_slice(&self.null.to_ne_bytes());
-        (&mut buffer[8..16]).copy_from_slice(&self.null.to_ne_bytes());
+        push_slice(&mut buffer[..], self.null.to_ne_bytes());
+        push_slice(&mut buffer[8..], self.base.to_ne_bytes());
     }
 }
 
@@ -109,13 +111,13 @@ impl Memory for DataSpace {
     }
 
     fn buffer_from_raw_parts(&self, addr: usize, len: usize) -> &[u8] {
-        &self.inner[addr - BASE_ADDR..addr-BASE_ADDR + len]
+        &self.inner[addr - BASE_ADDR..addr - BASE_ADDR + len]
     }
     fn buffer_from_raw_parts_mut(&mut self, addr: usize, len: usize) -> &mut [u8] {
-        &mut self.inner[addr - BASE_ADDR..addr-BASE_ADDR + len]
+        &mut self.inner[addr - BASE_ADDR..addr - BASE_ADDR + len]
     }
     fn put_u8(&mut self, v: u8, pos: usize) {
-        self.inner[pos - BASE_ADDR] = v; 
+        self.inner[pos - BASE_ADDR] = v;
     }
     fn put_usize(&mut self, v: usize, pos: usize) {
         push_slice(&mut self.inner[pos - BASE_ADDR..], v.to_ne_bytes());
@@ -125,7 +127,6 @@ impl Memory for DataSpace {
     }
     fn put_f64(&mut self, v: f64, pos: usize) {
         push_slice(&mut self.inner[pos - BASE_ADDR..], v.to_ne_bytes());
-        
     }
 }
 
@@ -216,7 +217,7 @@ pub(crate) trait Memory {
             panic!("Error: compile_isize while space is full.");
         }
     }
-    fn put_f64(&mut self, v: f64, pos: usize) ;
+    fn put_f64(&mut self, v: f64, pos: usize);
 
     fn compile_f64(&mut self, v: f64) {
         let here = self.here();
@@ -309,6 +310,23 @@ fn pull_slice<T: Copy, const N: usize>(slice: &[T]) -> [T; N] {
     std::array::from_fn(|n| slice[n])
 }
 
-fn push_slice<T : Copy, const N : usize>(slice : &mut [T], bytes : [T ; N]) {
+fn push_slice<T: Copy, const N: usize>(slice: &mut [T], bytes: [T; N]) {
     (&mut slice[..N]).copy_from_slice(&bytes);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_systemvariable_conversion() {
+        let null = 0x4211_54743;
+        let base = 0xba5e;
+        let expected = SystemVariables {null, base};
+        let mut buffer = [0 ; 1024];
+        expected.write(&mut buffer);
+        let actual = SystemVariables::read(&buffer);
+        assert_eq!(expected, actual);
+
+    }
 }
