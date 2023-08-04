@@ -6,6 +6,9 @@ use std::marker;
 use std::mem;
 use std::slice;
 
+const BASE_ADDR: usize = 0x4000_0000;
+
+#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
 pub struct SystemVariables {
     null: isize,
     base: isize,
@@ -13,15 +16,24 @@ pub struct SystemVariables {
 
 impl SystemVariables {
     pub fn base_addr(&self) -> usize {
-        &self.base as *const _ as usize
+        let base_addr = &self.base as *const _ as usize;
+        let root_addr = &self as *const _ as usize;
+        let offset = base_addr - root_addr;
+        BASE_ADDR + offset
+    }
+
+    fn read(buffer: &[u8]) -> Self {
+        todo!()
+    }
+    fn write(&self, buffer: &mut [u8]) {
+        (&mut buffer[..8]).copy_from_slice(&self.null.to_ne_bytes());
+        (&mut buffer[8..16]).copy_from_slice(&self.null.to_ne_bytes());
     }
 }
 
 #[allow(dead_code)]
 pub struct DataSpace {
-    pub inner: *mut u8,
-    layout: Layout,
-    cap: usize,
+    inner: Box<[u8]>,
     len: usize,
     marker: marker::PhantomData<SystemVariables>,
 }
@@ -33,60 +45,37 @@ impl DataSpace {
     }
 
     pub fn with_capacity(cap: usize) -> Self {
-        let ptr: *mut u8;
-        let layout = Layout::from_size_align(cap, page_size::get()).unwrap();
-        unsafe {
-            ptr = alloc_zeroed(layout);
-            if ptr.is_null() {
-                panic!("Cannot allocate data space");
-            }
-        }
+        let allocation = vec![0; cap];
+        let inner = allocation.into_boxed_slice();
         let mut result = DataSpace {
-            inner: ptr,
-            layout,
-            cap,
+            inner,
             len: mem::size_of::<SystemVariables>(),
             marker: marker::PhantomData,
         };
-        result.system_variables_mut().null = 0;
-        result.system_variables_mut().base = 10;
+        SystemVariables { null: 0, base: 10 }.write(&mut result.inner);
         result
     }
 
-    // Getter
-
-    pub fn system_variables(&self) -> &SystemVariables {
-        unsafe { &*(self.inner.offset(0) as *const SystemVariables) }
-    }
-
-    pub fn system_variables_mut(&mut self) -> &mut SystemVariables {
-        unsafe { &mut *(self.inner.offset(0) as *mut SystemVariables) }
-    }
-}
-
-impl Drop for DataSpace {
-    fn drop(&mut self) {
-        unsafe {
-            dealloc(self.inner, self.layout);
-        }
+    pub fn system_variables(&self) -> SystemVariables {
+        SystemVariables::read(&self.inner)
     }
 }
 
 impl Memory for DataSpace {
     fn start(&self) -> usize {
-        unsafe { self.inner.offset(0) as usize }
+        BASE_ADDR
     }
 
     fn limit(&self) -> usize {
-        unsafe { self.inner.offset(self.cap as isize) as usize }
+        BASE_ADDR + self.inner.len()
     }
 
     fn capacity(&self) -> usize {
-        self.limit() - self.start()
+        self.inner.len()
     }
 
     fn here(&self) -> usize {
-        unsafe { self.inner.offset(self.len as isize) as usize }
+        BASE_ADDR + self.len
     }
 
     fn set_here(&mut self, pos: usize) -> Result<(), Exception> {
@@ -98,6 +87,45 @@ impl Memory for DataSpace {
         } else {
             Err(INVALID_MEMORY_ADDRESS)
         }
+    }
+    fn get_u8(&self, addr: usize) -> u8 {
+        self.inner[addr - BASE_ADDR]
+    }
+
+    fn get_usize(&self, addr: usize) -> usize {
+        usize::from_ne_bytes(pull_slice(&self.inner[addr - BASE_ADDR..]))
+    }
+
+    fn get_isize(&self, addr: usize) -> isize {
+        isize::from_ne_bytes(pull_slice(&self.inner[addr - BASE_ADDR..]))
+    }
+
+    fn get_f64(&self, addr: usize) -> f64 {
+        f64::from_ne_bytes(pull_slice(&self.inner[addr - BASE_ADDR..]))
+    }
+
+    fn str_from_raw_parts(&self, addr: usize, len: usize) -> &str {
+        std::str::from_utf8(&self.inner[addr - BASE_ADDR..addr - BASE_ADDR + len]).unwrap()
+    }
+
+    fn buffer_from_raw_parts(&self, addr: usize, len: usize) -> &[u8] {
+        &self.inner[addr - BASE_ADDR..addr-BASE_ADDR + len]
+    }
+    fn buffer_from_raw_parts_mut(&mut self, addr: usize, len: usize) -> &mut [u8] {
+        &mut self.inner[addr - BASE_ADDR..addr-BASE_ADDR + len]
+    }
+    fn put_u8(&mut self, v: u8, pos: usize) {
+        self.inner[pos - BASE_ADDR] = v; 
+    }
+    fn put_usize(&mut self, v: usize, pos: usize) {
+        push_slice(&mut self.inner[pos - BASE_ADDR..], v.to_ne_bytes());
+    }
+    fn put_isize(&mut self, v: isize, pos: usize) {
+        push_slice(&mut self.inner[pos - BASE_ADDR..], v.to_ne_bytes());
+    }
+    fn put_f64(&mut self, v: f64, pos: usize) {
+        push_slice(&mut self.inner[pos - BASE_ADDR..], v.to_ne_bytes());
+        
     }
 }
 
@@ -124,69 +152,47 @@ pub(crate) trait Memory {
     /// Set next free space.
     fn set_here(&mut self, pos: usize) -> Result<(), Exception>;
 
-    unsafe fn get_u8(&self, addr: usize) -> u8 {
-        *(addr as *mut u8)
-    }
+    fn get_u8(&self, addr: usize) -> u8;
 
-    unsafe fn get_usize(&self, addr: usize) -> usize {
-        *(addr as *mut usize)
-    }
+    fn get_usize(&self, addr: usize) -> usize;
 
-    unsafe fn get_isize(&self, addr: usize) -> isize {
-        *(addr as *mut isize)
-    }
+    fn get_isize(&self, addr: usize) -> isize;
 
-    unsafe fn get_f64(&self, addr: usize) -> f64 {
-        *(addr as *mut f64)
-    }
+    fn get_f64(&self, addr: usize) -> f64;
 
-    unsafe fn get_str(&self, addr: usize) -> &str {
+    fn get_str(&self, addr: usize) -> &str {
         let len = self.get_usize(addr);
         let a = addr + mem::size_of::<usize>();
         self.str_from_raw_parts(a, len)
     }
 
-    unsafe fn str_from_raw_parts(&self, addr: usize, len: usize) -> &str {
-        mem::transmute(slice::from_raw_parts::<u8>(addr as *const u8, len))
-    }
+    fn str_from_raw_parts(&self, addr: usize, len: usize) -> &str;
 
-    unsafe fn buffer_from_raw_parts(&self, addr: usize, len: usize) -> &[u8] {
-        slice::from_raw_parts::<u8>(addr as *const u8, len)
-    }
+    fn buffer_from_raw_parts(&self, addr: usize, len: usize) -> &[u8];
 
-    unsafe fn buffer_from_raw_parts_mut(&mut self, addr: usize, len: usize) -> &mut [u8] {
-        slice::from_raw_parts_mut::<u8>(addr as *mut u8, len)
-    }
+    fn buffer_from_raw_parts_mut(&mut self, addr: usize, len: usize) -> &mut [u8];
 
     // Basic operations
 
-    unsafe fn put_u8(&mut self, v: u8, pos: usize) {
-        *(pos as *mut u8) = v;
-    }
+    fn put_u8(&mut self, v: u8, pos: usize);
 
     #[allow(dead_code)]
     fn compile_u8(&mut self, v: u8) {
         let here = self.here();
         if here < self.limit() {
-            unsafe {
-                self.put_u8(v, here);
-            }
+            self.put_u8(v, here);
             self.allot(mem::size_of::<u8>() as isize);
         } else {
             panic!("Error: compile_u8 while space is full.");
         }
     }
 
-    unsafe fn put_usize(&mut self, v: usize, pos: usize) {
-        *(pos as *mut usize) = v;
-    }
+    fn put_usize(&mut self, v: usize, pos: usize);
 
     fn compile_usize(&mut self, v: usize) {
         let here = self.here();
         if here + mem::size_of::<usize>() <= self.limit() {
-            unsafe {
-                self.put_usize(v, here);
-            }
+            self.put_usize(v, here);
             self.allot(mem::size_of::<usize>() as isize);
         } else {
             panic!("Error: compile_usize while space is full.");
@@ -199,31 +205,23 @@ pub(crate) trait Memory {
         self.compile_usize(diff);
     }
 
-    unsafe fn put_isize(&mut self, v: isize, pos: usize) {
-        *(pos as *mut isize) = v;
-    }
+    fn put_isize(&mut self, v: isize, pos: usize);
 
     fn compile_isize(&mut self, v: isize) {
         let here = self.here();
         if here + mem::size_of::<isize>() <= self.limit() {
-            unsafe {
-                self.put_isize(v, here);
-            }
+            self.put_isize(v, here);
             self.allot(mem::size_of::<isize>() as isize);
         } else {
             panic!("Error: compile_isize while space is full.");
         }
     }
-    unsafe fn put_f64(&mut self, v: f64, pos: usize) {
-        *(pos as *mut f64) = v;
-    }
+    fn put_f64(&mut self, v: f64, pos: usize) ;
 
     fn compile_f64(&mut self, v: f64) {
         let here = self.here();
         if here + mem::size_of::<f64>() <= self.limit() {
-            unsafe {
-                self.put_f64(v, here);
-            }
+            self.put_f64(v, here);
             self.allot(mem::size_of::<f64>() as isize);
         } else {
             panic!("Error: compile_f64 while space is full.");
@@ -236,14 +234,10 @@ pub(crate) trait Memory {
         let len = bytes.len().min(255);
         if pos + len + mem::size_of::<usize>() <= self.limit() {
             let mut p = pos;
-            unsafe {
-                *(p as *mut u8) = len as u8;
-            }
+            self.put_u8(len as u8, p);
             for byte in &bytes[0..len] {
                 p += 1;
-                unsafe {
-                    *(p as *mut u8) = *byte;
-                }
+                self.put_u8(*byte, p);
             }
         } else {
             panic!("Error: put_cstr while space is full.");
@@ -309,4 +303,12 @@ pub(crate) trait Memory {
     fn truncate(&mut self, pos: usize) {
         self.set_here(pos);
     }
+}
+
+fn pull_slice<T: Copy, const N: usize>(slice: &[T]) -> [T; N] {
+    std::array::from_fn(|n| slice[n])
+}
+
+fn push_slice<T : Copy, const N : usize>(slice : &mut [T], bytes : [T ; N]) {
+    (&mut slice[..N]).copy_from_slice(&bytes);
 }
