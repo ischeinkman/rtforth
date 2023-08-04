@@ -23,20 +23,17 @@ pub trait Tools: Output {
     ///
     /// Display values on the data stack.
     fn dot_s(&mut self) {
-        match self.output_buffer().take() {
-            Some(mut buf) => {
-                if !self.s_stack().is_empty() {
-                    write!(buf, "{:?}", self.s_stack()).expect("write data stack");
-                }
-                if !self.f_stack().is_empty() {
-                    if !self.s_stack().is_empty() {
-                        write!(buf, " ").unwrap();
-                    }
-                    write!(buf, "F: {:?}", self.f_stack()).expect("write floating stack");
-                }
-                self.set_output_buffer(buf);
+        if let Some(mut buf) = self.output_buffer().take() {
+            if !self.s_stack().is_empty() {
+                write!(buf, "{:?}", self.s_stack()).expect("write data stack");
             }
-            None => {}
+            if !self.f_stack().is_empty() {
+                if !self.s_stack().is_empty() {
+                    write!(buf, " ").unwrap();
+                }
+                write!(buf, "F: {:?}", self.f_stack()).expect("write floating stack");
+            }
+            self.set_output_buffer(buf);
         }
     }
 
@@ -125,16 +122,13 @@ pub trait Tools: Output {
         let ds_here = self.data_space().here();
         let ds_cap = ds_limit - ds_start;
         let ds_used = ds_here - ds_start;
-        match self.output_buffer().as_mut() {
-            Some(buf) => {
-                writeln!(
-                    buf,
-                    "data space capacity: {}, used: {}, start: 0x{:X}, limit: 0x{:X}, here: 0x{:X}",
-                    ds_cap, ds_used, ds_start, ds_limit, ds_here
-                )
-                .expect("write data space");
-            }
-            None => {}
+        if let Some(buf) = self.output_buffer().as_mut() {
+            writeln!(
+                buf,
+                "data space capacity: {}, used: {}, start: 0x{:X}, limit: 0x{:X}, here: 0x{:X}",
+                ds_cap, ds_used, ds_start, ds_limit, ds_here
+            )
+            .expect("write data space");
         }
     }
 
@@ -194,28 +188,19 @@ pub trait Tools: Output {
 
     /// Print content of the input buffer. `.input ( -- )`
     fn dot_input(&mut self) {
-        match self.input_buffer().take() {
-            Some(input) => {
-                match self.output_buffer().as_mut() {
-                    Some(out) => {
-                        out.push_str(&input);
-                    }
-                    None => {}
-                }
-                self.set_input_buffer(input);
+        if let Some(input) = self.input_buffer().take() {
+            if let Some(out) = self.output_buffer().as_mut() {
+                out.push_str(&input);
             }
-            None => {}
+            self.set_input_buffer(input);
         }
     }
 
     /// Flush output buffer to standard error output. `flush-to-err ( -- )`
     fn flush_to_err(&mut self) {
-        match self.output_buffer().as_mut() {
-            Some(out) => {
-                eprintln!("{}", out);
-                out.clear();
-            }
-            None => {}
+        if let Some(out) = self.output_buffer().as_mut() {
+            eprintln!("{}", out);
+            out.clear();
         }
     }
 }
